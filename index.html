@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<meta name="theme-color" content="#080a0e" />
+		<title>ShadersPuzzle Lab</title>
+		<link rel="stylesheet" href="/src/launcher.css" />
+	</head>
+	<body>
+		<main class="launcher">
+			<nav class="group-nav" aria-label="Project sections">
+				<a href="#apps"><span>01</span> Apps</a>
+				<a href="#tests"><span>02</span> Tests</a>
+			</nav>
+			<header class="launcher-hero">
+				<span class="eyebrow">ShadersPuzzle / workspace</span>
+				<h1>Build the object.<br /><em>Test the impossible.</em></h1>
+				<p>A focused collection of tools and visual experiments for the ShadersPuzzle project.</p>
+			</header>
+			<section id="apps" class="launcher-section" aria-labelledby="apps-title">
+				<div class="section-heading"><div><span class="section-number">01</span><h2 id="apps-title">Apps</h2></div><p>Production tools</p></div>
+				<div class="app-grid">
+					<a class="app-card geometry" href="./piece-editor.html"><span class="card-index">01</span><div class="card-visual"><div class="card-icon"><i></i><i></i><i></i></div></div><div class="card-copy"><h3>Piece Editor</h3><p>Shape, inspect and export connected puzzle pieces.</p></div><span class="open-label" aria-hidden="true">&nearr;</span></a>
+					<a class="app-card shader" href="./shader-editor.html"><span class="card-index">02</span><div class="card-visual"><div class="shader-orb"></div></div><div class="card-copy"><h3>Shader Editor</h3><p>Explore animated fields in 2D slices and on 3D surfaces.</p></div><span class="open-label" aria-hidden="true">&nearr;</span></a>
+					<a class="app-card game" href="./game.html"><span class="card-index">03</span><div class="card-visual"><div class="game-cube"><i></i><i></i><i></i></div></div><div class="card-copy"><h3>Play Puzzle</h3><p>Grab, fly and reconnect the animated puzzle in VR.</p></div><span class="open-label" aria-hidden="true">&nearr;</span></a>
+					<a class="app-card character" href="./character-lab.html"><span class="card-index">04</span><div class="card-visual"><div class="character-mark"><i></i><b></b><span></span></div></div><div class="card-copy"><h3>Character Physics</h3><p>Tilt, shake and test a tiny procedural character in a physical container.</p></div><span class="open-label" aria-hidden="true">&nearr;</span></a>
+				</div>
+			</section>
+			<section id="tests" class="launcher-section test-section" aria-labelledby="tests-title">
+				<div class="section-heading"><div><span class="section-number">02</span><h2 id="tests-title">Tests</h2></div><p>Shader prototypes</p></div>
+				<a class="test-card" href="./infinity-mirror.html">
+					<div class="test-meta"><span>GLSL / THREE.JS</span><span>NEW EXPERIMENT</span></div>
+					<div class="mirror-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+					<div class="test-copy"><p>Optical study 001</p><h3>Infinity<br />Mirror Cube</h3><span>Launch experiment <b>&rarr;</b></span></div>
+				</a>
+			</section>
+			<footer class="launcher-footer"><span>ShadersPuzzle</span><span>Creative coding workspace / 2026</span></footer>
+		</main>
+	</body>
+</html>

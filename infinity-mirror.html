@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="en">
+	<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="theme-color" content="#050709" /><title>Infinity Mirror Cube / ShadersPuzzle</title><link rel="stylesheet" href="/src/infinityMirror.css" /></head>
+	<body>
+		<div id="mirrorApp">
+			<header class="mirror-topbar"><a class="back-link" href="./index.html" aria-label="Back to project index">&larr;</a><div class="mirror-brand"><strong>ShadersPuzzle</strong><span>/ TEST 001</span></div><div class="render-badge"><i></i> WebGL shader</div></header>
+			<main class="mirror-main"><div id="mirrorViewport" aria-label="Interactive infinity mirror cube"></div><div class="experiment-title"><span>OPTICAL STUDY</span><h1>Infinity<br />Mirror Cube</h1></div><div id="performanceHud" class="performance-hud"><div><span>FPS</span><strong id="fpsValue">--</strong></div><div><span>FRAME</span><strong id="frameValue">-- ms</strong></div><div><span>CALLS</span><strong id="callsValue">--</strong></div><div><span>TRIS</span><strong id="trianglesValue">--</strong></div></div><aside id="mirrorPanel"></aside><div id="mirrorError" class="mirror-error" hidden></div></main>
+			<footer class="mirror-footer"><span>Drag to orbit / Wheel to zoom</span><span>Analytic mirror repeat / 16 samples max</span></footer>
+		</div>
+		<script type="module" src="/src/infinityMirrorMain.js"></script>
+	</body>
+</html>

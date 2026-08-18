@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>ShadersPuzzle Piece Editor</title>
+		<script type="module" crossorigin src="./assets/pieceEditor-NzyIvEze.js"></script>
+		<link rel="modulepreload" crossorigin href="./assets/OrbitControls-Br1fpmVG.js">
+		<link rel="modulepreload" crossorigin href="./assets/tweakpane-Bt2fMxNb.js">
+		<link rel="stylesheet" crossorigin href="./assets/pieceEditor-irCKnjzS.css">
+	</head>
+	<body>
+		<div id="app">
+			<header class="topbar">
+				<a class="home-link" href="./index.html" title="All tools">←</a>
+				<div class="brand"><span class="brand-mark"></span><strong>ShadersPuzzle</strong><span>Piece Editor</span></div>
+				<nav id="stageIndicator" aria-label="Editor stage"></nav>
+				<div class="topbar-actions"><button id="frameAll" type="button">Frame all</button><button id="frameSelection" type="button">Frame selection</button></div>
+			</header>
+			<main><div id="viewport" aria-label="3D editor viewport"></div><aside id="panel"></aside></main>
+			<footer><div id="statusText">Initializing editor…</div><div id="helpText">Left click: select · Drag: orbit · Wheel: zoom · Esc: clear selection</div></footer>
+		</div>
+		<input id="projectFileInput" type="file" accept="application/json,.json" hidden />
+	</body>
+</html>

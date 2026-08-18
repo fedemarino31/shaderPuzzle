@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="es">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<meta name="theme-color" content="#090b0d" />
+		<title>Character Physics Lab / ShadersPuzzle</title>
+		<link rel="stylesheet" href="/src/characterLab.css" />
+	</head>
+	<body>
+		<div id="characterLab">
+			<header class="lab-topbar">
+				<a class="back-link" href="./index.html" aria-label="Volver al inicio" title="Volver al inicio">&#8592;</a>
+				<div class="lab-brand"><strong>ShadersPuzzle</strong><span>/ CHARACTER PHYSICS 001</span></div>
+				<div id="engineBadge" class="engine-badge"><i></i><span>Iniciando Rapier</span></div>
+			</header>
+			<main class="lab-main">
+				<div id="labViewport" aria-label="Laboratorio físico de personaje dentro de un contenedor"></div>
+
+				<section class="state-readout" aria-live="polite">
+					<div><span>ESTADO</span><strong id="stateValue">BOOT</strong></div>
+					<div class="stability-cell"><span>ESTABILIDAD</span><strong id="stabilityValue">0%</strong><i><b id="stabilityBar"></b></i></div>
+					<div><span>ESCENARIO</span><strong id="scenarioValue">Manual</strong></div>
+				</section>
+
+				<aside class="control-panel" aria-label="Controles del laboratorio">
+					<div class="panel-heading"><div><span>CONTROL</span><strong>Contenedor</strong></div><button id="panelToggle" class="icon-button" type="button" title="Contraer panel" aria-label="Contraer panel">&#8722;</button></div>
+					<div class="panel-content">
+						<section class="control-section">
+							<div class="control-label"><label for="rotationX">Rotación X</label><output id="rotationXValue">0°</output></div>
+							<input id="rotationX" type="range" min="-180" max="180" value="0" step="1" />
+							<div class="control-label"><label for="rotationZ">Rotación Z</label><output id="rotationZValue">0°</output></div>
+							<input id="rotationZ" type="range" min="-180" max="180" value="0" step="1" />
+							<div class="control-label"><label for="transitionSpeed">Velocidad</label><output id="transitionSpeedValue">45°/s</output></div>
+							<input id="transitionSpeed" type="range" min="10" max="360" value="45" step="5" />
+						</section>
+						<section class="control-section">
+							<span class="section-label">ORIENTACIÓN RÁPIDA</span>
+							<div class="preset-grid">
+								<button type="button" data-preset="level">0°</button><button type="button" data-preset="soft">15°</button><button type="button" data-preset="steep">40°</button><button type="button" data-preset="vertical">90°</button>
+							</div>
+							<div class="action-grid">
+								<button id="suddenButton" class="accent" type="button"><span aria-hidden="true">&#8635;</span> Giro brusco</button>
+								<button id="impactButton" type="button"><span aria-hidden="true">&#8594;</span> Impacto</button>
+								<button id="shakeButton" type="button"><span aria-hidden="true">&#8644;</span> Sacudir</button>
+								<button id="resetButton" type="button"><span aria-hidden="true">&#8634;</span> Reset</button>
+							</div>
+						</section>
+						<section class="control-section split-control">
+							<label for="personalitySelect">Personalidad</label>
+							<select id="personalitySelect"><option value="normal">Normal</option><option value="clumsy">Torpe</option></select>
+							<label class="toggle-row"><span>Vectores debug</span><input id="debugToggle" type="checkbox" checked /><i></i></label>
+							<label class="toggle-row"><span>Proxy físico</span><input id="proxyToggle" type="checkbox" /><i></i></label>
+						</section>
+						<section class="control-section">
+							<div class="scenario-header"><span class="section-label">SCENARIO RUNNER</span><span id="scenarioTime">0.0 s</span></div>
+							<select id="scenarioSelect" aria-label="Escenario"></select>
+							<div class="scenario-actions"><button id="playScenarioButton" class="accent" type="button"><span aria-hidden="true">&#9654;</span> Ejecutar</button><button id="stopScenarioButton" class="icon-button" type="button" title="Detener escenario" aria-label="Detener escenario">&#9632;</button></div>
+							<div id="scenarioScore" class="scenario-score" hidden><span>SCORE</span><strong>--</strong><small></small></div>
+						</section>
+					</div>
+				</aside>
+
+				<aside class="telemetry-panel" aria-label="Telemetría física">
+					<div class="telemetry-heading"><span>TELEMETRÍA</span><i>LIVE</i></div>
+					<dl>
+						<div><dt>Gravedad local</dt><dd id="gravityValue">0.00, -9.81, 0.00</dd></div>
+						<div><dt>Orientación</dt><dd id="orientationValue">X 0° / Z 0°</dd></div>
+						<div><dt>Vel. angular</dt><dd id="angularValue">0.00 rad/s</dd></div>
+						<div><dt>Vel. proxy</dt><dd id="velocityValue">0.00 m/s</dd></div>
+						<div><dt>Superficie piso</dt><dd id="floorValue">Y+</dd></div>
+						<div><dt>Normal contacto</dt><dd id="normalValue">0.00, 1.00, 0.00</dd></div>
+						<div><dt>Último impacto</dt><dd id="impactValue">0.00 N</dd></div>
+						<div><dt>Subestado</dt><dd id="substateValue">STABLE</dd></div>
+						<div><dt>Tiempo estado</dt><dd id="stateTimeValue">0.0 s</dd></div>
+						<div><dt>Apoyo</dt><dd id="supportValue">SÍ</dd></div>
+					</dl>
+					<div class="thresholds"><span>THRESHOLDS</span><p id="thresholdValue">balance .84 / slide 34° / fall .24</p></div>
+				</aside>
+
+				<div id="labError" class="lab-error" hidden></div>
+			</main>
+			<footer class="lab-footer"><span>Arrastrar: orbitar / Rueda: zoom</span><span id="timelineValue">0 muestras registradas</span></footer>
+		</div>
+		<script type="module" src="/src/characterLabMain.js"></script>
+	</body>
+</html>

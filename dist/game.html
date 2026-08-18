@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="theme-color" content="#060910" />
+		<title>ShadersPuzzle Game</title>
+		<script type="module" crossorigin src="./assets/game-Dwe7O4d0.js"></script>
+		<link rel="modulepreload" crossorigin href="./assets/OrbitControls-Br1fpmVG.js">
+		<link rel="modulepreload" crossorigin href="./assets/RoomEnvironment-Q56mtrNv.js">
+		<link rel="modulepreload" crossorigin href="./assets/BufferGeometryUtils-DCIx8BGp.js">
+		<link rel="modulepreload" crossorigin href="./assets/tweakpane-Bt2fMxNb.js">
+		<link rel="modulepreload" crossorigin href="./assets/pulseWaveAssets-DQ_Qli4R.js">
+		<link rel="stylesheet" crossorigin href="./assets/game-BNWGCEmw.css">
+	</head>
+	<body>
+		<div id="gameApp">
+			<header class="game-topbar">
+				<a class="home-link" href="./index.html" title="All tools">←</a>
+				<div class="brand"><span class="brand-mark"></span><strong>ShadersPuzzle</strong><span>XR Game</span></div>
+				<div id="xrStatus" class="xr-status">Checking WebXR…</div>
+				<div id="backendBadge" class="backend-badge">Initializing renderer…</div>
+			</header>
+			<main class="game-main">
+				<div id="gameViewport" aria-label="ShadersPuzzle VR and AR game"></div>
+				<section class="game-hud" aria-label="Puzzle progress">
+					<div><small>Blocks</small><strong id="blocksValue">—</strong></div>
+					<div><small>Connections</small><strong id="connectionsValue">—</strong></div>
+					<div><small>Time</small><strong id="timerValue">00:00.0</strong></div>
+					<div><small>Scale</small><strong id="scaleValue">—</strong></div>
+				</section>
+				<aside id="gamePanel"></aside>
+				<div id="completeMessage" class="complete-message" hidden><strong>Puzzle complete</strong><span></span></div>
+				<div id="gameError" class="game-error" hidden></div>
+			</main>
+			<footer class="game-footer">
+				<div id="gameStatus">Preparing game…</div>
+				<div>Pinch / grip: grab · VR right stick: fly / snap turn · Release near a neighbor: connect</div>
+			</footer>
+		</div>
+	</body>
+</html>

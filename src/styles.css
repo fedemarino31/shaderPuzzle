@@ -1,0 +1,45 @@
+:root {
+	color-scheme: dark;
+	font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+	background: #090c10;
+	color: #e8edf5;
+	font-synthesis: none;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #app { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+button { font: inherit; }
+.home-link { display: grid; place-items: center; width: 28px; height: 28px; flex: 0 0 auto; border: 1px solid #344150; border-radius: 4px; color: #9cabbc; text-decoration: none; }
+.home-link:hover { color: #fff; border-color: #65d7ff; }
+
+#app { display: grid; grid-template-rows: 48px minmax(0, 1fr) 32px; background: #090c10; }
+.topbar { display: flex; align-items: center; gap: 24px; padding: 0 14px; border-bottom: 1px solid #27303b; background: #10151c; }
+.brand { display: flex; align-items: center; gap: 8px; min-width: 190px; letter-spacing: .01em; }
+.brand > span:last-child { color: #8996a8; font-size: 12px; text-transform: uppercase; letter-spacing: .12em; }
+.brand-mark { width: 13px; height: 13px; border: 2px solid #65d7ff; transform: rotate(45deg); box-shadow: 5px -5px 0 -2px #ff9d5c; }
+#stageIndicator { display: flex; align-self: stretch; }
+.stage-button { min-width: 105px; padding: 0 13px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #7f8a99; cursor: pointer; }
+.stage-button:hover { color: #cbd4e0; background: #151c25; }
+.stage-button.active { color: #fff; border-bottom-color: #65d7ff; background: #151c25; }
+.topbar-actions { display: flex; gap: 7px; margin-left: auto; }
+.topbar-actions button { padding: 6px 10px; border: 1px solid #344150; border-radius: 4px; color: #cbd4e0; background: #19212b; cursor: pointer; }
+.topbar-actions button:hover { border-color: #65d7ff; color: #fff; }
+main { position: relative; min-height: 0; }
+#viewport { position: absolute; inset: 0; background: radial-gradient(circle at 50% 40%, #18212d 0, #0b1016 62%, #07090d 100%); }
+#viewport canvas { display: block; width: 100%; height: 100%; outline: none; }
+#panel { position: absolute; top: 12px; right: 12px; width: 330px; max-height: calc(100% - 24px); overflow: auto; z-index: 2; border-radius: 7px; box-shadow: 0 12px 35px #0009; }
+#panel::-webkit-scrollbar { width: 7px; }
+#panel::-webkit-scrollbar-thumb { background: #3a4655; border-radius: 9px; }
+footer { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 0 12px; border-top: 1px solid #27303b; background: #10151c; color: #94a0af; font-size: 12px; }
+#statusText[data-level="error"] { color: #ff786f; }
+#statusText[data-level="warning"] { color: #ffc266; }
+#statusText[data-level="ok"] { color: #77dfa1; }
+#helpText { color: #6f7c8c; }
+.tp-dfwv { width: 100% !important; }
+
+@media (max-width: 900px) {
+	#stageIndicator { display: none; }
+	#panel { width: 310px; }
+	#helpText { display: none; }
+}
