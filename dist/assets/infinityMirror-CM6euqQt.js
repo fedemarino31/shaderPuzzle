@@ -1,4 +1,4 @@
-import{Et as e,K as t,M as n,Mr as r,W as i,Wt as a,Zt as o,_r as s,cr as c,ea as l,en as u,lr as d,n as f,na as p,q as m,r as h,ra as g,ro as _,t as v}from"./OrbitControls-Br1fpmVG.js";import{t as y}from"./tweakpane-Bt2fMxNb.js";import{t as b}from"./RoomEnvironment-Q56mtrNv.js";import{t as x}from"./BufferGeometryUtils-DCIx8BGp.js";var S=`varying vec3 vLocalPosition;
+import{Et as e,K as t,M as n,Mr as r,W as i,Wt as a,Zt as o,_r as s,cr as c,ea as l,en as u,lr as d,n as f,na as p,q as m,r as h,ra as g,ro as _,t as v}from"./OrbitControls-Br1fpmVG.js";import{t as y}from"./tweakpane-Bt2fMxNb.js";import{t as b}from"./RoomEnvironment-DzI907xD.js";import{t as x}from"./BufferGeometryUtils-BrsYIG7S.js";var S=`varying vec3 vLocalPosition;
 varying vec3 vLocalNormal;
 
 void main() {

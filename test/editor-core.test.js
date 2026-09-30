@@ -12,7 +12,7 @@ import { ShaderRuntime } from '../src/shader/ShaderRuntime.js';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { readFileSync, statSync } from 'node:fs';
-import { applyWorldDelta, buildConnectionContactGeometry, buildLegacyConnectionContactGeometry, calculateHintStrength, calculateSnapAlignment, collectResolvedConnectionIds, computePuzzleScale, createAssemblyMatrix, ensurePuzzleTextureUVs, interpolateIntersectionAttribute, mergeBlockMembership, scatterTransforms, selectBestSnapCandidate, selectHintCandidate, validateGameData } from '../src/game/gameCore.js';
+import { applyWorldDelta, buildConnectionContactGeometry, buildLegacyConnectionContactGeometry, calculateHintStrength, calculateSnapAlignment, collectGeometryBoundaryEdges, collectResolvedConnectionIds, computePuzzleScale, createAssemblyMatrix, ensurePuzzleTextureUVs, interpolateIntersectionAttribute, mergeBlockMembership, scatterTransforms, selectBestSnapCandidate, selectHintCandidate, validateGameData } from '../src/game/gameCore.js';
 import { createXRSessionInit, getXRModeConfig } from '../src/game/xrSessionConfig.js';
 import { pulseXRControllers } from '../src/game/SnapFeedback.js';
 import { createPieceCellLookup, createPuzzlePieceMap, createWhiteGridParticleData, findSpherePieceOverlaps, updateWhiteGridParticleData } from '../src/game/WhiteGridParticles.js';
@@ -440,4 +440,16 @@ test('fades connection hints smoothly over their configured distance', () => {
 	assert.equal(calculateHintStrength(0.32, 0.32), 0);
 	assert.equal(calculateHintStrength(1, 0.32), 0);
 	assert.ok(calculateHintStrength(0.08, 0.32) > calculateHintStrength(0.24, 0.32));
+});
+
+test('extracts only the outside edges of a triangulated contact patch', () => {
+	const geometry = new THREE.BufferGeometry();
+	geometry.setAttribute('position', new THREE.Float32BufferAttribute([
+		0, 0, 0, 1, 0, 0, 1, 1, 0,
+		0, 0, 0, 1, 1, 0, 0, 1, 0,
+	], 3));
+	const edges = collectGeometryBoundaryEdges(geometry);
+	assert.equal(edges.length, 4);
+	assert.ok(edges.every(({ start, end }) => start.distanceTo(end) === 1));
+	geometry.dispose();
 });

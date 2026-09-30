@@ -15,6 +15,11 @@ button, input { font: inherit; }
 .game-main { position: relative; height: calc(100% - 100px); }
 #gameViewport { position: absolute; inset: 0; }
 #gameViewport canvas { display: block; width: 100%; height: 100%; }
+.desktop-transform-toolbar { position: absolute; z-index: 4; left: 50%; top: 18px; display: flex; align-items: center; gap: 7px; transform: translateX(-50%); padding: 6px; color: #91a4bc; background: rgba(7,12,21,.88); border: 1px solid rgba(66,88,118,.72); border-radius: 10px; backdrop-filter: blur(12px); }
+.desktop-transform-toolbar button { padding: 7px 10px; color: #aebed2; background: #101a29; border: 1px solid #304159; border-radius: 7px; cursor: pointer; }
+.desktop-transform-toolbar button:hover, .desktop-transform-toolbar button.active { color: #eaffff; border-color: #67e8ff; background: rgba(34,91,105,.55); }
+.desktop-transform-toolbar span { padding: 0 7px 0 3px; font-size: 11px; white-space: nowrap; }
+kbd { padding: 1px 4px; color: #c9d9eb; background: #182336; border: 1px solid #405169; border-radius: 4px; font: 10px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace; }
 .game-hud { position: absolute; top: 18px; left: 18px; display: grid; grid-template-columns: repeat(2, minmax(130px, 1fr)); gap: 8px; pointer-events: none; }
 .game-hud > div { min-width: 140px; padding: 10px 12px; background: rgba(7,12,21,.82); border: 1px solid rgba(66,88,118,.65); border-radius: 10px; backdrop-filter: blur(12px); }
 .game-hud small { display: block; color: #8193aa; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
@@ -31,4 +36,5 @@ button, input { font: inherit; }
 #ARButton { border-color: #8ef0b1; }
 .xr-button:disabled { color: #7f91a9; border-color: #405169; cursor: default; opacity: .7; }
 .ar-session #gameViewport { background: transparent; }
+.xr-session .desktop-transform-toolbar { display: none; }
 @media (max-width: 900px) { #gamePanel { width: 240px; } .game-hud { grid-template-columns: 1fr; } .game-hud > div { min-width: 120px; } .game-footer > div:last-child { display: none; } }

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { Pane } from 'tweakpane';
 import { CMEventTypes, ControllersManager, XRTeleportMoveControl } from '../vendor/xrComponents.js';
@@ -34,6 +35,9 @@ export class GameApp {
 		this.pulseTime = 0;
 		this.pulseOrigin = new THREE.Vector3(0.5, 0.5, 0.5);
 		this.pulseRaycaster = new THREE.Raycaster();
+		this.desktopRaycaster = new THREE.Raycaster();
+		this.desktopPointer = new THREE.Vector2();
+		this.desktopTransformBlock = null;
 		this.lastFrame = performance.now();
 		this.gameStartedAt = null;
 		this.completedAt = null;
@@ -104,6 +108,7 @@ export class GameApp {
 		this.controls.target.set(0, 1.45, -2);
 		this.controls.minDistance = 0.5;
 		this.controls.maxDistance = 12;
+		this.setupDesktopTransformControls();
 
 		this.grid = new THREE.GridHelper(12, 24, 0x33445b, 0x172131);
 		this.grid.material.transparent = true;
@@ -114,6 +119,80 @@ export class GameApp {
 		const key = new THREE.DirectionalLight(0xffffff, 2.5);
 		key.position.set(2, 5, 1);
 		this.scene.add(hemisphere, key);
+	}
+
+	setupDesktopTransformControls() {
+		this.transformControls = new TransformControls(this.camera, this.renderer.domElement);
+		this.transformControls.setMode('translate');
+		this.transformControls.setSize(0.8);
+		this.transformControlsHelper = this.transformControls.getHelper();
+		this.scene.add(this.transformControlsHelper);
+
+		this.transformControls.addEventListener('dragging-changed', ({ value }) => {
+			this.controls.enabled = !value && !this.renderer.xr.isPresenting;
+		});
+		this.transformControls.addEventListener('mouseDown', () => {
+			if (this.activeXRMode || !this.desktopTransformBlock) return;
+			this.assembly?.beginDesktopTransform(this.desktopTransformBlock);
+		});
+		this.transformControls.addEventListener('objectChange', () => {
+			if (this.activeXRMode || !this.desktopTransformBlock) return;
+			this.assembly?.updateDesktopTransform(this.desktopTransformBlock);
+		});
+		this.transformControls.addEventListener('mouseUp', () => {
+			if (this.activeXRMode || !this.desktopTransformBlock) return;
+			const resultingBlock = this.assembly?.endDesktopTransform(this.desktopTransformBlock);
+			this.desktopTransformBlock = resultingBlock;
+			if (resultingBlock?.root) this.transformControls.attach(resultingBlock.root);
+		});
+
+		this.desktopPointerDownHandler = (event) => this.selectDesktopBlock(event);
+		this.renderer.domElement.addEventListener('pointerdown', this.desktopPointerDownHandler);
+		this.desktopKeyHandler = (event) => {
+			if (event.repeat || this.activeXRMode || /^(INPUT|SELECT|TEXTAREA)$/.test(event.target?.tagName)) return;
+			if (event.code === 'KeyW') this.setDesktopTransformMode('translate');
+			if (event.code === 'KeyE') this.setDesktopTransformMode('rotate');
+			if (event.code === 'Escape') this.clearDesktopTransformSelection();
+		};
+		window.addEventListener('keydown', this.desktopKeyHandler);
+		for (const button of document.querySelectorAll('[data-transform-mode]')) {
+			button.addEventListener('click', () => this.setDesktopTransformMode(button.dataset.transformMode));
+		}
+	}
+
+	selectDesktopBlock(event) {
+		if (event.button !== 0 || this.activeXRMode || !this.assembly || this.transformControls.dragging || this.transformControls.axis) return;
+		const bounds = this.renderer.domElement.getBoundingClientRect();
+		this.desktopPointer.set(
+			((event.clientX - bounds.left) / bounds.width) * 2 - 1,
+			-((event.clientY - bounds.top) / bounds.height) * 2 + 1,
+		);
+		this.desktopRaycaster.setFromCamera(this.desktopPointer, this.camera);
+		const [intersection] = this.desktopRaycaster.intersectObjects(this.assembly.getRaycastTargets(), false);
+		if (!intersection) {
+			this.clearDesktopTransformSelection();
+			return;
+		}
+		const block = this.assembly.getBlockForPieceId(intersection.object.userData.pieceId);
+		if (!block) return;
+		this.desktopTransformBlock = block;
+		this.transformControls.attach(block.root);
+		this.setStatus(`${block.pieceIds.size === 1 ? 'Piece selected' : `${block.pieceIds.size}-piece block selected`} — drag the gizmo to move or rotate.`);
+	}
+
+	setDesktopTransformMode(mode) {
+		if (!['translate', 'rotate'].includes(mode)) return;
+		this.transformControls.setMode(mode);
+		for (const button of document.querySelectorAll('[data-transform-mode]')) {
+			const active = button.dataset.transformMode === mode;
+			button.classList.toggle('active', active);
+			button.setAttribute('aria-pressed', String(active));
+		}
+	}
+
+	clearDesktopTransformSelection() {
+		this.transformControls?.detach();
+		this.desktopTransformBlock = null;
 	}
 
 	setupXR() {
@@ -236,6 +315,8 @@ export class GameApp {
 		this.activeXRMode = this.requestedXRMode || inferredMode;
 		this.requestedXRMode = null;
 		this.currentXRSession = session;
+		this.clearDesktopTransformSelection();
+		this.transformControls.enabled = false;
 		// Reset the offset before sampling the first viewer pose. VR compensates
 		// guardian origins; AR uses the same stable reference-space mechanism once.
 		this.locomotion.worldOffset.set(0, 0, 0);
@@ -252,6 +333,7 @@ export class GameApp {
 		this.activeXRMode = null;
 		this.requestedXRMode = null;
 		this.currentXRSession = null;
+		this.transformControls.enabled = true;
 		this.locomotion.enabledHands = ['right'];
 		this.applyPresentationMode(null);
 		this.renderer.xr.setReferenceSpaceType('local-floor');
@@ -265,6 +347,7 @@ export class GameApp {
 		this.renderer.setClearAlpha(isAR ? 0 : 1);
 		this.grid.visible = !isAR;
 		document.body.classList.toggle('ar-session', isAR);
+		document.body.classList.toggle('xr-session', Boolean(mode));
 	}
 
 	async loadPuzzleSet(setId) {
@@ -294,6 +377,7 @@ export class GameApp {
 	}
 
 	setupPuzzle({ data, meshes }, puzzleSet) {
+		this.clearDesktopTransformSelection();
 		this.assembly?.dispose();
 		this.puzzlePieceMap?.dispose();
 		this.material = null;
@@ -425,6 +509,7 @@ export class GameApp {
 
 	resetPuzzle(newScatter) {
 		if (!this.assembly) return;
+		this.clearDesktopTransformSelection();
 		if (newScatter) this.assembly.newScatter(); else this.assembly.restart();
 		this.resetGameProgress();
 	}
@@ -476,9 +561,10 @@ export class GameApp {
 			for (const material of this.assembly.getMaterials()) setGameMaterialTime(material, this.shaderTime, this.pulseTime);
 		}
 		if (this.state.shaderPreset === 'white-grid-particles') this.particleAudio?.update(this.whiteGridParticleData);
-		this.controls.enabled = !this.renderer.xr.isPresenting;
+		this.controls.enabled = !this.renderer.xr.isPresenting && !this.transformControls.dragging;
 		this.controls.update();
 		this.controllers.update(time / 1000, delta);
+		this.assembly?.update(time / 1000);
 		this.alignXRStartPosition();
 		this.locomotion.update(delta);
 		if (this.gameStartedAt != null) document.getElementById('timerValue').textContent = this.formattedTime();

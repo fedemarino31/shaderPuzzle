@@ -1,12 +1,14 @@
 import * as THREE from 'three';
 import { GrabbableVRObject, GVREventTypes } from '../vendor/xrComponents.js';
-import { applyWorldDelta, buildConnectionContactGeometry, buildLegacyConnectionContactGeometry, calculateHintStrength, calculateSnapAlignment, collectResolvedConnectionIds, ensurePuzzleTextureUVs, mergeBlockMembership, scatterTransforms, selectBestSnapCandidate, selectHintCandidate } from './gameCore.js';
+import { applyWorldDelta, buildConnectionContactGeometry, buildLegacyConnectionContactGeometry, calculateHintStrength, calculateSnapAlignment, collectGeometryBoundaryEdges, collectResolvedConnectionIds, ensurePuzzleTextureUVs, mergeBlockMembership, scatterTransforms, selectBestSnapCandidate, selectHintCandidate } from './gameCore.js';
 import { setGameMaterialCamera } from './GameMaterials.js';
 
 const POSITION_TOLERANCE = 0.04;
 const ANGLE_TOLERANCE = THREE.MathUtils.degToRad(18);
-const HINT_MAX_DISTANCE = 0.32;
+// Distance at which compatible nearby pieces begin showing their contact outline.
+export const CONTACT_HINT_DISTANCE = 0.5;
 const HINT_MAX_OPACITY = 0.95;
+const HINT_EDGE_THICKNESS = 0.018;
 const MOVING_HINT_COLOR = 0xffb84d;
 const TARGET_HINT_COLOR = 0x67e8ff;
 const READY_HINT_COLOR = 0x7dff9b;
@@ -90,6 +92,10 @@ export class PuzzleAssembly {
 		return [...this.pieceObjects.values()].filter((mesh) => mesh.visible);
 	}
 
+	getBlockForPieceId(pieceId) {
+		return this.pieceToBlock.get(pieceId) ?? null;
+	}
+
 	getMaterials() {
 		return [...this.pieceObjects.values()].map((mesh) => mesh.material);
 	}
@@ -115,37 +121,47 @@ export class PuzzleAssembly {
 		const group = new THREE.Group();
 		group.name = name;
 		group.visible = false;
-		const surfaceMaterial = new THREE.MeshBasicMaterial({
-			color,
+		const edgeMaterial = new THREE.ShaderMaterial({
+			uniforms: {
+				uColor: { value: new THREE.Color(color) },
+				uOpacity: { value: 0 },
+				uTime: { value: 0 },
+			},
+			vertexShader: `
+				void main() {
+					gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+				}
+			`,
+			fragmentShader: `
+				uniform vec3 uColor;
+				uniform float uOpacity;
+				uniform float uTime;
+				void main() {
+					float stripeWave = sin((gl_FragCoord.x - uTime * 54.0) * 0.34906585);
+					float transition = max(fwidth(stripeWave), 0.015);
+					float brightStripe = smoothstep(-transition, transition, stripeWave);
+					float luminosity = mix(0.42, 1.0, brightStripe);
+					gl_FragColor = vec4(uColor * luminosity, uOpacity);
+				}
+			`,
 			transparent: true,
-			opacity: 0,
 			depthTest: true,
 			depthWrite: false,
-			side: THREE.DoubleSide,
 			toneMapped: false,
 			polygonOffset: true,
 			polygonOffsetFactor: -2,
 			polygonOffsetUnits: -2,
 		});
-		const wireMaterial = new THREE.MeshBasicMaterial({
-			color,
-			transparent: true,
-			opacity: 0,
-			depthTest: true,
-			depthWrite: false,
-			side: THREE.DoubleSide,
-			wireframe: true,
-			toneMapped: false,
-			blending: THREE.AdditiveBlending,
-			polygonOffset: true,
-			polygonOffsetFactor: -4,
-			polygonOffsetUnits: -4,
-		});
-		const placeholderGeometry = new THREE.BufferGeometry();
-		const surface = new THREE.Mesh(placeholderGeometry, surfaceMaterial);
-		const wire = new THREE.Mesh(surface.geometry, wireMaterial);
-		for (const object of [surface, wire]) { object.renderOrder = 9; object.frustumCulled = false; group.add(object); }
-		group.userData = { surface, wire, baseColor: new THREE.Color(color), placeholderGeometry };
+		const edges = new THREE.Group();
+		edges.renderOrder = 9;
+		group.add(edges);
+		group.userData = {
+			edges,
+			edgeMaterial,
+			boxGeometry: new THREE.BoxGeometry(1, 1, 1),
+			baseColor: new THREE.Color(color),
+			contactGeometry: null,
+		};
 		return group;
 	}
 
@@ -208,10 +224,9 @@ export class PuzzleAssembly {
 	handleGrabUpdate(block, event) {
 		const previousId = block.candidate?.connection.id;
 		block.root.updateWorldMatrix(true, true);
-		const candidates = this.findConnectionCandidates(block);
-		const hintCandidate = selectHintCandidate(candidates, HINT_MAX_DISTANCE, this.activeHintConnectionId);
-		this.updateConnectionHint(hintCandidate);
-		block.candidate = selectBestSnapCandidate(candidates, POSITION_TOLERANCE, ANGLE_TOLERANCE);
+		const candidates = this.findConnectionCandidates(block, { includeGrabbedTargets: true });
+		const snapCandidates = candidates.filter(({ targetBlock }) => !targetBlock.grabbed);
+		block.candidate = selectBestSnapCandidate(snapCandidates, POSITION_TOLERANCE, ANGLE_TOLERANCE);
 		block.candidateController = event.controller;
 		if (!block.candidate) {
 			this.preview.visible = false;
@@ -230,7 +245,8 @@ export class PuzzleAssembly {
 		block.grabbed = false;
 		this.preview.visible = false;
 		this.clearConnectionHints();
-		const candidate = block.candidate;
+		block.root.updateWorldMatrix(true, true);
+		const candidate = selectBestSnapCandidate(this.findConnectionCandidates(block), POSITION_TOLERANCE, ANGLE_TOLERANCE);
 		block.candidate = null;
 		if (!candidate) {
 			this.onStatus('Block released without a matching connection.');
@@ -241,7 +257,33 @@ export class PuzzleAssembly {
 		});
 	}
 
-	findConnectionCandidates(movingBlock) {
+	beginDesktopTransform(block) {
+		if (!block || !this.blocks.has(block.id)) return false;
+		this.handleGrabStart(block);
+		return true;
+	}
+
+	updateDesktopTransform(block) {
+		if (!block?.grabbed || !this.blocks.has(block.id)) return;
+		this.handleGrabUpdate(block, { controller: null });
+	}
+
+	endDesktopTransform(block) {
+		if (!block || !this.blocks.has(block.id)) return null;
+		block.grabbed = false;
+		this.preview.visible = false;
+		this.clearConnectionHints();
+		block.root.updateWorldMatrix(true, true);
+		const candidate = selectBestSnapCandidate(this.findConnectionCandidates(block), POSITION_TOLERANCE, ANGLE_TOLERANCE);
+		block.candidate = null;
+		if (!candidate) {
+			this.onStatus('Block released without a matching connection.');
+			return block;
+		}
+		return this.commitSnap(block, candidate) ?? block;
+	}
+
+	findConnectionCandidates(movingBlock, { includeGrabbedTargets = false } = {}) {
 		const candidates = [];
 		for (const connection of this.connections.values()) {
 			const movingIsA = movingBlock.pieceIds.has(connection.pieceA);
@@ -250,7 +292,7 @@ export class PuzzleAssembly {
 			const movingId = movingIsA ? connection.pieceA : connection.pieceB;
 			const targetId = movingIsA ? connection.pieceB : connection.pieceA;
 			const targetBlock = this.pieceToBlock.get(targetId);
-			if (!targetBlock || targetBlock === movingBlock || targetBlock.grabbed) continue;
+			if (!targetBlock || targetBlock === movingBlock || (!includeGrabbedTargets && targetBlock.grabbed)) continue;
 			const movingObject = this.pieceObjects.get(movingId);
 			const targetObject = this.pieceObjects.get(targetId);
 			targetObject.updateWorldMatrix(true, false);
@@ -263,6 +305,30 @@ export class PuzzleAssembly {
 				this.unitScale
 			);
 			candidates.push({ connection, movingId, targetId, targetBlock, alignment });
+		}
+		return candidates;
+	}
+
+	findGlobalHintCandidates() {
+		const candidates = [];
+		for (const connection of this.connections.values()) {
+			const movingId = connection.pieceA;
+			const targetId = connection.pieceB;
+			const movingBlock = this.pieceToBlock.get(movingId);
+			const targetBlock = this.pieceToBlock.get(targetId);
+			if (!movingBlock || !targetBlock || movingBlock === targetBlock) continue;
+			const movingObject = this.pieceObjects.get(movingId);
+			const targetObject = this.pieceObjects.get(targetId);
+			movingObject.updateWorldMatrix(true, false);
+			targetObject.updateWorldMatrix(true, false);
+			const alignment = calculateSnapAlignment(
+				movingObject.matrixWorld,
+				targetObject.matrixWorld,
+				this.pieces.get(movingId),
+				this.pieces.get(targetId),
+				this.unitScale,
+			);
+			candidates.push({ connection, movingId, targetId, movingBlock, targetBlock, alignment });
 		}
 		return candidates;
 	}
@@ -291,13 +357,24 @@ export class PuzzleAssembly {
 	attachContactHint(hint, pieceId, geometry) {
 		const pieceObject = this.pieceObjects.get(pieceId);
 		if (!pieceObject || !geometry) return false;
-		const { surface, wire } = hint.userData;
-		if (hint.userData.placeholderGeometry) {
-			hint.userData.placeholderGeometry.dispose();
-			hint.userData.placeholderGeometry = null;
+		const { edges, edgeMaterial, boxGeometry } = hint.userData;
+		if (hint.userData.contactGeometry !== geometry) {
+			edges.clear();
+			const xAxis = new THREE.Vector3(1, 0, 0);
+			for (const edge of collectGeometryBoundaryEdges(geometry)) {
+				const direction = edge.end.clone().sub(edge.start);
+				const length = direction.length();
+				if (length <= Number.EPSILON) continue;
+				const box = new THREE.Mesh(boxGeometry, edgeMaterial);
+				box.position.copy(edge.start).add(edge.end).multiplyScalar(0.5);
+				box.quaternion.setFromUnitVectors(xAxis, direction.multiplyScalar(1 / length));
+				box.scale.set(length + HINT_EDGE_THICKNESS, HINT_EDGE_THICKNESS, HINT_EDGE_THICKNESS);
+				box.renderOrder = 9;
+				box.frustumCulled = false;
+				edges.add(box);
+			}
+			hint.userData.contactGeometry = geometry;
 		}
-		surface.geometry = geometry;
-		wire.geometry = geometry;
 		pieceObject.add(hint);
 		hint.position.set(0, 0, 0);
 		hint.quaternion.identity();
@@ -307,15 +384,10 @@ export class PuzzleAssembly {
 	}
 
 	setContactHintAppearance(hint, strength, ready) {
-		const { surface, wire, baseColor } = hint.userData;
-		surface.material.color.copy(baseColor);
-		wire.material.color.copy(baseColor);
-		if (ready) {
-			surface.material.color.setHex(READY_HINT_COLOR);
-			wire.material.color.setHex(READY_HINT_COLOR);
-		}
-		surface.material.opacity = strength * 0.34;
-		wire.material.opacity = strength * HINT_MAX_OPACITY;
+		const { edgeMaterial, baseColor } = hint.userData;
+		edgeMaterial.uniforms.uColor.value.copy(baseColor);
+		if (ready) edgeMaterial.uniforms.uColor.value.setHex(READY_HINT_COLOR);
+		edgeMaterial.uniforms.uOpacity.value = strength * HINT_MAX_OPACITY;
 	}
 
 	updateConnectionHint(candidate) {
@@ -324,7 +396,7 @@ export class PuzzleAssembly {
 		const movingGeometry = this.getContactGeometry(connection, movingId);
 		const targetGeometry = this.getContactGeometry(connection, targetId);
 		if (!movingGeometry || !targetGeometry) return this.clearConnectionHints();
-		const strength = calculateHintStrength(alignment.positionError, HINT_MAX_DISTANCE);
+		const strength = calculateHintStrength(alignment.positionError, CONTACT_HINT_DISTANCE);
 		const ready = alignment.positionError <= POSITION_TOLERANCE && alignment.angleError <= ANGLE_TOLERANCE;
 		this.attachContactHint(this.movingContactHint, movingId, movingGeometry);
 		this.attachContactHint(this.targetContactHint, targetId, targetGeometry);
@@ -337,21 +409,29 @@ export class PuzzleAssembly {
 		for (const hint of [this.movingContactHint, this.targetContactHint]) {
 			hint.visible = false;
 			hint.parent?.remove(hint);
-			hint.userData.surface.material.opacity = 0;
-			hint.userData.wire.material.opacity = 0;
+			hint.userData.edgeMaterial.uniforms.uOpacity.value = 0;
 		}
 		this.activeHintConnectionId = null;
 	}
 
+	update(timeSeconds) {
+		for (const hint of [this.movingContactHint, this.targetContactHint]) {
+			hint.userData.edgeMaterial.uniforms.uTime.value = timeSeconds;
+		}
+		const candidates = this.findGlobalHintCandidates();
+		const hintCandidate = selectHintCandidate(candidates, CONTACT_HINT_DISTANCE, this.activeHintConnectionId);
+		this.updateConnectionHint(hintCandidate);
+	}
+
 	commitSnap(movingBlock, candidate) {
 		const targetBlock = this.pieceToBlock.get(candidate.targetId);
-		if (!targetBlock || targetBlock === movingBlock || targetBlock.grabbed) return;
+		if (!targetBlock || targetBlock === movingBlock || targetBlock.grabbed) return null;
 		const movingObject = this.pieceObjects.get(candidate.movingId);
 		const targetObject = this.pieceObjects.get(candidate.targetId);
 		movingObject.updateWorldMatrix(true, false);
 		targetObject.updateWorldMatrix(true, false);
 		const alignment = calculateSnapAlignment(movingObject.matrixWorld, targetObject.matrixWorld, this.pieces.get(candidate.movingId), this.pieces.get(candidate.targetId), this.unitScale);
-		if (alignment.positionError > POSITION_TOLERANCE || alignment.angleError > ANGLE_TOLERANCE) return;
+		if (alignment.positionError > POSITION_TOLERANCE || alignment.angleError > ANGLE_TOLERANCE) return null;
 
 		applyWorldDelta(movingBlock.root, alignment.delta);
 		const contactGeometry = this.getContactGeometry(candidate.connection, candidate.targetId);
@@ -380,6 +460,7 @@ export class PuzzleAssembly {
 		const complete = this.blocks.size === 1;
 		this.onStatus(complete ? 'Puzzle complete!' : `Snapped! ${this.blocks.size} blocks remain.`);
 		this.emitChange();
+		return targetBlock;
 	}
 
 	refreshResolvedConnections() {
@@ -399,8 +480,8 @@ export class PuzzleAssembly {
 	dispose() {
 		this.clearBlocks();
 		for (const hint of [this.movingContactHint, this.targetContactHint]) {
-			hint.userData.placeholderGeometry?.dispose();
-			for (const object of hint.children) object.material.dispose();
+			hint.userData.boxGeometry.dispose();
+			hint.userData.edgeMaterial.dispose();
 		}
 		this.scene.remove(this.preview);
 		this.preview.geometry.dispose();

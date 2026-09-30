@@ -189,6 +189,41 @@ function geometryFromPositions(positions) {
 	return geometry;
 }
 
+// Returns only the outside contour of a triangulated contact patch. Triangle
+// diagonals and edges shared by adjacent contact faces occur twice and are
+// deliberately removed.
+export function collectGeometryBoundaryEdges(geometry, epsilon = null) {
+	const positions = geometry?.getAttribute?.('position');
+	if (!positions || positions.count < 3) return [];
+	if (!geometry.boundingSphere) geometry.computeBoundingSphere();
+	const tolerance = epsilon ?? Math.max(geometry.boundingSphere?.radius ?? 1, 1) * 1e-5;
+	const inverseTolerance = 1 / Math.max(tolerance, Number.EPSILON);
+	const pointKey = (point) => `${Math.round(point.x * inverseTolerance)},${Math.round(point.y * inverseTolerance)},${Math.round(point.z * inverseTolerance)}`;
+	const edges = new Map();
+	const index = geometry.index;
+	const streamCount = index ? index.count : positions.count;
+	const readPoint = (streamIndex) => new THREE.Vector3().fromBufferAttribute(positions, index ? index.getX(streamIndex) : streamIndex);
+
+	for (let start = 0; start + 2 < streamCount; start += 3) {
+		const triangle = [readPoint(start), readPoint(start + 1), readPoint(start + 2)];
+		for (const [aIndex, bIndex] of [[0, 1], [1, 2], [2, 0]]) {
+			const a = triangle[aIndex];
+			const b = triangle[bIndex];
+			const aKey = pointKey(a);
+			const bKey = pointKey(b);
+			if (aKey === bKey) continue;
+			const key = aKey < bKey ? `${aKey}|${bKey}` : `${bKey}|${aKey}`;
+			const existing = edges.get(key);
+			if (existing) existing.count += 1;
+			else edges.set(key, { start: a.clone(), end: b.clone(), count: 1 });
+		}
+	}
+
+	return [...edges.values()]
+		.filter(({ count }) => count === 1)
+		.map(({ start, end }) => ({ start, end }));
+}
+
 export function buildConnectionContactGeometry(connection, piece, contactGeometry, unitScale) {
 	if (!connection || !piece || ![connection.pieceA, connection.pieceB].includes(piece.id)) throw new Error('Cannot build contact geometry for an unrelated piece.');
 	if (contactGeometry?.space !== 'assembled' || !contactGeometry.vertices) throw new Error('Contact geometry is unavailable.');

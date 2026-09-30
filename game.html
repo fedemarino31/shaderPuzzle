@@ -17,6 +17,11 @@
 			</header>
 			<main class="game-main">
 				<div id="gameViewport" aria-label="ShadersPuzzle VR and AR game"></div>
+				<div id="desktopTransformToolbar" class="desktop-transform-toolbar" aria-label="Desktop piece controls">
+					<button type="button" data-transform-mode="translate" class="active" aria-pressed="true">Move <kbd>W</kbd></button>
+					<button type="button" data-transform-mode="rotate" aria-pressed="false">Rotate <kbd>E</kbd></button>
+					<span>Click a piece · <kbd>Esc</kbd> deselects</span>
+				</div>
 				<section class="game-hud" aria-label="Puzzle progress">
 					<div><small>Blocks</small><strong id="blocksValue">—</strong></div>
 					<div><small>Connections</small><strong id="connectionsValue">—</strong></div>
