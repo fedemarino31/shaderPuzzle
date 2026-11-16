@@ -1,7 +1,7 @@
 # ShadersPuzzle — compatibilidad WebXR y diagnóstico de pantalla negra
 
 **Estado:** correcciones VR y AR incorporadas  
-**Área:** juego XR (`game.html`)  
+**Área:** juego XR (`game-tester.html`)  
 **Renderer compatible:** `THREE.WebGLRenderer`  
 **Entorno de prueba de escritorio:** Immersive Web Emulator para Chrome
 
@@ -114,7 +114,7 @@ Si no aparece ninguna geometría, se debe probar temporalmente un `MeshBasicMate
 ## 4. Procedimiento de prueba con Immersive Web Emulator
 
 1. Abrir las herramientas de desarrollo de Chrome y habilitar el dispositivo en el panel WebXR del emulador.
-2. Cargar `game.html` desde el servidor HTTPS de Vite.
+2. Cargar `game-tester.html` desde el servidor HTTPS de Vite.
 3. Antes de repetir una prueba después de cambiar el renderer, terminar la sesión XR existente.
 4. Realizar una recarga completa con `Ctrl+Shift+R`. El renderer y el contexto WebGL anteriores permanecen activos mientras viva la página.
 5. Probar **ENTER VR** y **ENTER AR** en sesiones independientes.

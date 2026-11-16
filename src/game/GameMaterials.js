@@ -1,6 +1,22 @@
 import * as THREE from 'three';
 import { PULSE_WAVE_DEFAULTS } from '../shader/pulseWaveCore.js';
 import { createWhiteGridParticleData, WHITE_GRID_PARTICLE_COUNT } from './WhiteGridParticles.js';
+import { DEFAULT_PBR, GAME_MATERIAL_PARAMS } from './materialParams.js';
+
+// GLSL literal helpers: material parameters from materialParams.js are baked
+// into the shader source when it is built.
+const glslFloat = (value) => {
+	const number = Number(value);
+	if (!Number.isFinite(number)) throw new Error(`Invalid material parameter: ${value}`);
+	return Number.isInteger(number) ? number.toFixed(1) : String(number);
+};
+const glslVec3 = (values) => `vec3(${values.map(glslFloat).join(', ')})`;
+const glslSRGB = (hex) => {
+	const value = parseInt(String(hex).replace('#', ''), 16);
+	if (!Number.isFinite(value)) throw new Error(`Invalid material color: ${hex}`);
+	return `puzzleSRGBToLinear(${glslVec3([(value >> 16) & 255, (value >> 8) & 255, value & 255].map((channel) => channel / 255))})`;
+};
+const P = GAME_MATERIAL_PARAMS;
 
 // WebGL/PBR counterparts of the TSL presets exposed by the shader editor.
 // Keep the ids in sync with src/shader/presets.js.
@@ -77,7 +93,7 @@ const FRAGMENT_DECLARATIONS = /* glsl */ `
 		vec3 nextBoundary = uPuzzleGridOrigin + nextBoundaryIndex * cellSize;
 		vec3 nextDistance = max((nextBoundary - rayStart) / safeDirection, vec3(0.0));
 		vec3 distanceStep = cellSize / abs(safeDirection);
-		float barRadius = max(uPuzzleVoxelSize * 0.028, 0.00035);
+		float barRadius = max(uPuzzleVoxelSize * ${glslFloat(P['white-grid'].barRadius)}, ${glslFloat(P['white-grid'].minBarRadius)});
 		float accumulated = 0.0;
 
 		for (int i = 0; i < 16; i++) {
@@ -99,9 +115,9 @@ const FRAGMENT_DECLARATIONS = /* glsl */ `
 			float edgeDistance = puzzleGridEdgeDistance(rayStart + rayDirection * travelDistance, crossedAxis);
 			float aa = clamp(fwidth(edgeDistance), barRadius * 0.08, barRadius * 0.7);
 			float core = 1.0 - smoothstep(barRadius - aa, barRadius + aa, edgeDistance);
-			float halo = exp(-max(edgeDistance - barRadius, 0.0) / max(barRadius * 1.25, 0.0001));
-			float reflectionFade = pow(0.8, float(i));
-			accumulated += (core * 0.82 + halo * 0.045) * exp(-travelDistance * 6.0) * reflectionFade;
+			float halo = exp(-max(edgeDistance - barRadius, 0.0) / max(barRadius * ${glslFloat(P['white-grid'].haloFalloff)}, 0.0001));
+			float reflectionFade = pow(${glslFloat(P['white-grid'].reflectionFade)}, float(i));
+			accumulated += (core * ${glslFloat(P['white-grid'].coreIntensity)} + halo * ${glslFloat(P['white-grid'].haloIntensity)}) * exp(-travelDistance * ${glslFloat(P['white-grid'].depthFade)}) * reflectionFade;
 		}
 		return accumulated;
 	}
@@ -230,7 +246,7 @@ const FRAGMENT_DECLARATIONS = /* glsl */ `
 		vec3 localRay = normalize(localPosition - uPuzzleCameraLocal);
 		vec3 rayDirection = normalize(localRay * uPuzzleLocalToUVW);
 		vec3 rayStart = uvw + rayDirection * 0.00015;
-		vec3 result = uPuzzleBarColor * puzzleWhiteGrid(localPosition) * 1.05;
+		vec3 result = uPuzzleBarColor * puzzleWhiteGrid(localPosition) * ${glslFloat(P['white-grid'].particleGridEmission)};
 		for (int i = 0; i < ${WHITE_GRID_PARTICLE_COUNT}; i++) {
 			vec3 center = uPuzzleParticles[i].xyz;
 			float radius = uPuzzleParticles[i].w;
@@ -253,11 +269,11 @@ const FRAGMENT_DECLARATIONS = /* glsl */ `
 			vec3 hitPoint = rayStart + rayDirection * travel;
 			vec3 normal = normalize(hitPoint - center);
 			float facing = max(dot(normal, -rayDirection), 0.0);
-			float fresnel = pow(1.0 - facing, 2.5);
-			float depthFade = exp(-travel * 3.5);
-			float pulse = 0.84 + 0.16 * sin(time * (2.1 + float(i) * 0.37) + float(i) * 1.7);
+			float fresnel = pow(1.0 - facing, ${glslFloat(P['white-grid-particles'].fresnelPower)});
+			float depthFade = exp(-travel * ${glslFloat(P['white-grid-particles'].depthFade)});
+			float pulse = ${glslFloat(1 - P['white-grid-particles'].pulseAmount)} + ${glslFloat(P['white-grid-particles'].pulseAmount)} * sin(time * (${glslFloat(P['white-grid-particles'].pulseSpeed)} + float(i) * 0.37) + float(i) * 1.7);
 			float identityVariation = 0.88 + float(i) * 0.07;
-			result += uPuzzleBarColor * identityVariation * (0.75 + facing * 1.15 + fresnel * 1.8) * depthFade * pulse;
+			result += uPuzzleBarColor * identityVariation * (${glslFloat(P['white-grid-particles'].baseGlow)} + facing * ${glslFloat(P['white-grid-particles'].facingGain)} + fresnel * ${glslFloat(P['white-grid-particles'].fresnelGain)}) * depthFade * pulse;
 		}
 		return result;
 	}
@@ -289,52 +305,44 @@ const FRAGMENT_DECLARATIONS = /* glsl */ `
 	}
 
 	vec3 puzzleSphericalWaves(vec3 position, float time) {
-		vec3 background = puzzleSRGBToLinear(vec3(0.027, 0.082, 0.133));
-		vec3 result = background;
-		vec3 p0 = vec3(-0.45, 0.15, 0.10);
-		vec3 p1 = vec3( 0.38,-0.25, 0.25);
-		vec3 p2 = vec3( 0.08, 0.42,-0.35);
-		float i0 = puzzleBand(sin(distance(position, p0) * 9.0  - time * 2.2),       0.20, 0.08);
-		float i1 = puzzleBand(sin(distance(position, p1) * 11.0 - time * 1.7 + 1.2), 0.20, 0.08);
-		float i2 = puzzleBand(sin(distance(position, p2) * 8.0  - time * 2.6 + 2.4), 0.20, 0.08);
-		result += puzzleSRGBToLinear(vec3(1.000, 0.404, 0.373)) * i0;
-		result += puzzleSRGBToLinear(vec3(0.345, 0.851, 1.000)) * i1;
-		result += puzzleSRGBToLinear(vec3(0.831, 0.475, 1.000)) * i2;
+		vec3 result = ${glslSRGB(P['spherical-waves'].background)};
+		${P['spherical-waves'].waves.map((wave, index) => `float i${index} = puzzleBand(sin(distance(position, ${glslVec3(wave.center)}) * ${glslFloat(wave.frequency)} - time * ${glslFloat(wave.speed)} + ${glslFloat(wave.phase)}), ${glslFloat(P['spherical-waves'].bandWidth)}, ${glslFloat(P['spherical-waves'].softness)});
+		result += ${glslSRGB(wave.color)} * i${index};`).join('\n\t\t')}
 		return clamp(result, 0.0, 1.0);
 	}
 
 	vec3 puzzleDirectionalStripes(vec3 position, float time) {
-		vec3 direction = normalize(vec3(1.0, 0.45, 0.2));
-		float phase = dot(position, direction) * 8.0 - time * 1.7;
-		float band = puzzleBand(sin(phase), 0.20, 0.07);
+		vec3 direction = normalize(${glslVec3(P['directional-stripes'].direction)});
+		float phase = dot(position, direction) * ${glslFloat(P['directional-stripes'].frequency)} - time * ${glslFloat(P['directional-stripes'].speed)};
+		float band = puzzleBand(sin(phase), ${glslFloat(P['directional-stripes'].bandWidth)}, ${glslFloat(P['directional-stripes'].softness)});
 		return mix(
-			puzzleSRGBToLinear(vec3(0.145, 0.067, 0.286)),
-			puzzleSRGBToLinear(vec3(1.000, 0.706, 0.361)),
+			${glslSRGB(P['directional-stripes'].colorA)},
+			${glslSRGB(P['directional-stripes'].colorB)},
 			band
 		);
 	}
 
 	vec3 puzzleGrid3D(vec3 position, float time) {
-		vec3 phase = position * vec3(3.0) * 3.14159265 + vec3(1.0, 0.63, 1.37) * time * 0.13;
-		float xLine = puzzleBand(sin(phase.x), 0.08, 0.025);
-		float yLine = puzzleBand(sin(phase.y), 0.08, 0.025);
-		float zLine = puzzleBand(sin(phase.z), 0.08, 0.025);
+		vec3 phase = position * vec3(${glslFloat(P['grid-3d'].frequency)}) * 3.14159265 + ${glslVec3(P['grid-3d'].drift)} * time;
+		float xLine = puzzleBand(sin(phase.x), ${glslFloat(P['grid-3d'].lineWidth)}, ${glslFloat(P['grid-3d'].softness)});
+		float yLine = puzzleBand(sin(phase.y), ${glslFloat(P['grid-3d'].lineWidth)}, ${glslFloat(P['grid-3d'].softness)});
+		float zLine = puzzleBand(sin(phase.z), ${glslFloat(P['grid-3d'].lineWidth)}, ${glslFloat(P['grid-3d'].softness)});
 		float lineValue = max(min(xLine, yLine), max(min(yLine, zLine), min(zLine, xLine)));
-		float pulse = sin(time * 1.4) * 0.15 + 0.85;
+		float pulse = sin(time * ${glslFloat(P['grid-3d'].pulseSpeed)}) * ${glslFloat(P['grid-3d'].pulseAmount)} + ${glslFloat(1 - P['grid-3d'].pulseAmount)};
 		return mix(
-			puzzleSRGBToLinear(vec3(0.027, 0.067, 0.118)),
-			puzzleSRGBToLinear(vec3(0.404, 0.910, 1.000)) * pulse,
+			${glslSRGB(P['grid-3d'].colorBackground)},
+			${glslSRGB(P['grid-3d'].colorLine)} * pulse,
 			lineValue
 		);
 	}
 
 	vec3 puzzleRepeatedSpheres(vec3 position, float time) {
-		vec3 repeated = puzzleRepeat(position, vec3(0.8), vec3(0.71, 0.43, 0.29) * time * 0.08);
-		float radius = 0.28 + sin(time * 1.8) * 0.05;
-		float mask = puzzleSdfFill(length(repeated) - radius, 0.04);
+		vec3 repeated = puzzleRepeat(position, vec3(${glslFloat(P['repeated-spheres'].period)}), ${glslVec3(P['repeated-spheres'].drift)} * time);
+		float radius = ${glslFloat(P['repeated-spheres'].radius)} + sin(time * ${glslFloat(P['repeated-spheres'].pulseSpeed)}) * ${glslFloat(P['repeated-spheres'].radiusPulse)};
+		float mask = puzzleSdfFill(length(repeated) - radius, ${glslFloat(P['repeated-spheres'].softness)});
 		return mix(
-			puzzleSRGBToLinear(vec3(0.063, 0.086, 0.184)),
-			puzzleSRGBToLinear(vec3(1.000, 0.373, 0.569)),
+			${glslSRGB(P['repeated-spheres'].colorBackground)},
+			${glslSRGB(P['repeated-spheres'].colorSphere)},
 			mask
 		);
 	}
@@ -388,7 +396,7 @@ const FRAGMENT_DECLARATIONS = /* glsl */ `
 	}
 
 	vec3 puzzlePresetEmission(vec3 localPosition, vec3 uvw, float time, float pulseTime) {
-		if (uPuzzlePreset == 6) return uPuzzleBarColor * puzzleWhiteGrid(localPosition) * 1.15;
+		if (uPuzzlePreset == 6) return uPuzzleBarColor * puzzleWhiteGrid(localPosition) * ${glslFloat(P['white-grid'].emission)};
 		if (uPuzzlePreset == 7) return puzzleWhiteGridParticles(localPosition, uvw, time);
 		if (uPuzzlePreset == 8) return puzzleVolumetricCloudGrid(localPosition, uvw, time);
 		return uPuzzlePreset == 5 ? puzzlePulseWaveEmission(uvw, pulseTime) : vec3(0.0);
@@ -399,9 +407,10 @@ function applyPresetProfile(material) {
 	const pulse = material.userData.puzzlePreset === 'pulse-wave-train';
 	const volume = material.userData.puzzlePreset === 'volumetric-cloud-grid';
 	const assets = material.userData.pulseWaveAssets;
-	material.metalness = volume ? 0 : (pulse ? 0.97 : material.userData.defaultPbr.metalness);
-	material.roughness = volume ? 1 : (pulse ? 0.17 : material.userData.defaultPbr.roughness);
-	material.envMapIntensity = volume ? 0 : (pulse ? 3 : material.userData.defaultPbr.envMapIntensity);
+	const pbr = { ...material.userData.defaultPbr, ...(GAME_MATERIAL_PARAMS[material.userData.puzzlePreset]?.pbr ?? {}) };
+	material.metalness = volume ? 0 : (pulse ? 0.97 : pbr.metalness);
+	material.roughness = volume ? 1 : (pulse ? 0.17 : pbr.roughness);
+	material.envMapIntensity = volume ? 0 : (pulse ? 3 : pbr.envMapIntensity);
 	material.normalMap = pulse ? assets?.normalMap ?? null : null;
 	material.normalScale.setScalar(pulse ? 0.12 : 1);
 	material.roughnessMap = pulse ? assets?.roughnessMap ?? null : null;
@@ -416,7 +425,7 @@ function applyPresetProfile(material) {
 	material.needsUpdate = true;
 }
 
-export function createGamePuzzleMaterial({ preset = 'spherical-waves', metalness = 0.9, roughness = 0.16, envMapIntensity = 2.2, pulseWaveAssets = null, pulseOrigin = new THREE.Vector3(0.5, 0.5, 0.5), barColor = '#b8edff', gridOrigin = new THREE.Vector3(), voxelSize = 0.1, pieceMap = null, gridSize = 1, pieceToken = 0, localToUVW = new THREE.Vector3(1, 1, 1), particleData = null, volumeColor = '#8edcff', volumeDensity = 0.62, volumeScale = 5.5, volumeSpeed = 0.12, volumeSteps = 10, volumeBlend = 'additive' } = {}) {
+export function createGamePuzzleMaterial({ preset = 'spherical-waves', metalness = DEFAULT_PBR.metalness, roughness = DEFAULT_PBR.roughness, envMapIntensity = DEFAULT_PBR.envMapIntensity, pulseWaveAssets = null, pulseOrigin = new THREE.Vector3(0.5, 0.5, 0.5), barColor = '#b8edff', gridOrigin = new THREE.Vector3(), voxelSize = 0.1, pieceMap = null, gridSize = 1, pieceToken = 0, localToUVW = new THREE.Vector3(1, 1, 1), particleData = null, volumeColor = '#8edcff', volumeDensity = 0.62, volumeScale = 5.5, volumeSpeed = 0.12, volumeSteps = 10, volumeBlend = 'additive' } = {}) {
 	const material = new THREE.MeshStandardMaterial({
 		color: 0xffffff,
 		metalness,
@@ -474,7 +483,7 @@ export function createGamePuzzleMaterial({ preset = 'spherical-waves', metalness
 			.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance += puzzlePresetEmission(vPuzzleLocalPosition, vPuzzleUVW, uPuzzleTime, uPuzzlePulseTime);');
 		material.userData.puzzleShader = shader;
 	};
-	material.customProgramCacheKey = () => 'shaders-puzzle-pbr-v4';
+	material.customProgramCacheKey = () => 'shaders-puzzle-pbr-v5';
 	applyPresetProfile(material);
 	return material;
 }

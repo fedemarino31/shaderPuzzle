@@ -23,6 +23,7 @@ export default defineConfig({
 				launcher: resolve(import.meta.dirname, 'index.html'),
 				pieceEditor: resolve(import.meta.dirname, 'piece-editor.html'),
 				shaderEditor: resolve(import.meta.dirname, 'shader-editor.html'),
+				gameTester: resolve(import.meta.dirname, 'game-tester.html'),
 				game: resolve(import.meta.dirname, 'game.html'),
 				infinityMirror: resolve(import.meta.dirname, 'infinity-mirror.html'),
 				characterLab: resolve(import.meta.dirname, 'character-lab.html'),

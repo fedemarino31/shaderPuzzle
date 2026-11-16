@@ -14,8 +14,9 @@ const TARGET_HINT_COLOR = 0x67e8ff;
 const READY_HINT_COLOR = 0x7dff9b;
 
 export class PuzzleAssembly {
-	constructor({ scene, data, sourceMeshes, unitScale, material = null, materialFactory = null, onChange = () => {}, onStatus = () => {}, onInteraction = () => {}, onSnap = () => {} }) {
+	constructor({ scene, data, sourceMeshes, unitScale, material = null, materialFactory = null, onChange = () => {}, onStatus = () => {}, onInteraction = () => {}, onSnap = () => {}, scatterOptions = {} }) {
 		this.scene = scene;
+		this.scatterOptions = scatterOptions;
 		this.data = data;
 		this.sourceMeshes = sourceMeshes;
 		this.unitScale = unitScale;
@@ -46,7 +47,7 @@ export class PuzzleAssembly {
 	}
 
 	newScatter() {
-		this.lastScatter = scatterTransforms(this.data.pieces.length);
+		this.lastScatter = scatterTransforms(this.data.pieces.length, Math.random, this.scatterOptions);
 		this.rebuild(this.lastScatter);
 	}
 

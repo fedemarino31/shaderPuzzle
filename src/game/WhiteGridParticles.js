@@ -1,15 +1,14 @@
 import * as THREE from 'three';
 
-export const WHITE_GRID_PARTICLE_COUNT = 4;
+import { GAME_MATERIAL_PARAMS } from './materialParams.js';
 
-export const PARTICLE_SPEED_MULTIPLIER = 3.0;
+// Particle paths and speed are tunable in materialParams.js.
+const PARTICLE_PARAMS = GAME_MATERIAL_PARAMS['white-grid-particles'];
+const PARTICLE_PATHS = PARTICLE_PARAMS.particles;
 
-const PARTICLE_PATHS = [
-	{ phase: [0.13, 0.67, 0.31], speed: [0.071, 0.043, 0.059], radius: 0.042 },
-	{ phase: [0.76, 0.19, 0.54], speed: [-0.047, 0.063, 0.037], radius: 0.032 },
-	{ phase: [0.42, 0.88, 0.08], speed: [0.039, -0.052, 0.069], radius: 0.052 },
-	{ phase: [0.91, 0.36, 0.72], speed: [-0.061, -0.035, 0.046], radius: 0.027 },
-];
+export const WHITE_GRID_PARTICLE_COUNT = PARTICLE_PATHS.length;
+
+export const PARTICLE_SPEED_MULTIPLIER = PARTICLE_PARAMS.speedMultiplier;
 
 function pingPong(value) {
 	const wrapped = ((value % 2) + 2) % 2;

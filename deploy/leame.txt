@@ -1,0 +1,43 @@
+ShadersPuzzle - Juego AR (game.html) - Guia de publicacion
+==========================================================
+
+1) GENERAR EL BUILD
+   Ejecutar build_game.bat (en la raiz del proyecto). Genera la carpeta "dist".
+
+2) QUE COPIAR AL HOSTING
+   Copiar el CONTENIDO de la carpeta dist, respetando la estructura:
+
+     game.html          <- pagina del juego (abrir esta URL)
+     assets/            <- TODA la carpeta (JS, CSS, modelos .glb, .json,
+                           audios .mp3)
+
+   No hace falta copiar nada mas (ni node_modules, ni src, ni models, ni audios,
+   ni maps: ya vienen empaquetados dentro de assets/).
+   Este leame.txt no es necesario subirlo.
+
+3) SUBCARPETA
+   Todas las rutas son relativas, asi que se puede colgar en cualquier subcarpeta:
+     https://midominio.com/juegos/shaderspuzzle/game.html
+   Solo hay que mantener game.html y assets/ juntos en la misma carpeta.
+
+4) REQUISITOS DEL HOSTING
+   - HTTPS obligatorio (WebXR / AR no funciona en http, salvo localhost).
+   - Tipos MIME correctos (la mayoria de hostings ya los traen):
+       .glb  -> model/gltf-binary (o application/octet-stream)
+       .mp3  -> audio/mpeg
+       .json -> application/json
+       .js   -> text/javascript
+   - Si el hosting cachea de forma agresiva, los archivos de assets/ llevan hash
+     en el nombre, por lo que solo game.html debe revalidarse al actualizar.
+
+5) DEPENDENCIA EXTERNA (internet del visitante)
+   Los modelos de los mandos/manos VR se descargan en tiempo de ejecucion desde:
+     https://cdn.jsdelivr.net/npm/@webxr-input-profiles/assets@1.0/dist/profiles
+   No se copia al hosting; solo requiere que el dispositivo tenga conexion.
+
+6) PROBAR EN LOCAL ANTES DE SUBIR
+   Desde la raiz del proyecto: npx vite preview --config vite.game.config.mjs
+   (o servir la carpeta dist con cualquier servidor estatico HTTPS).
+
+Nota: build_game.bat reemplaza el contenido de dist (solo contiene el juego).
+Para el build completo de todas las herramientas usar run_build.bat.
